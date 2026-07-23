@@ -1,10 +1,24 @@
-from tkinter import *
+rom tkinter import *
 from tkinter import messagebox
 
 root=Tk()
 root.title("Login")
 root.geometry("500x400")
 root.config(bg="white")
+
+def Login():
+    username=username_entry.get()
+    password=password_entry.get()
+    if username=="mayank" and password=="2200":
+        messagebox.showinfo("Login success")
+    else:
+        messagebox.showerror("failed")
+
+def Clear():
+    username_entry.delete(0,END)
+    password_entry.delete(0,END)
+
+
 
 Label(root,text="Loin",
       font=("Arial",18,"bold"),
@@ -17,17 +31,26 @@ Frame1.pack(pady=20)
 Label(Frame1,text="username",
       font=("Arial",17,)
       bg="blue"
-      fg="white").grid(row=1,column=1,pack(padx=10))
+      fg="white").grid(row=1,column=1,(padx=10))
 username_entry=Entry(Frame1,text="USERNAME",
                      font=("Arial",17))
-username_entry.grid(row=2,column=2,pack(padx=10))
+username_entry.grid(row=2,column=2,(padx=10))
 
 Label(Frame1,text="password",
       font=("Arial",17),
       bg="yellow",
-      fg="white").grid(row=3,column=3,pack(padx-10))
+      fg="white").grid(row=3,column=3,padx=10)
 password_entry=Entry(Frame1,text="password",font=("Arial",17))
-password_entry.grid(pack=padx=10)
+password_entry.grid(padx=10)
 
 Button(Frame1,text="Login",
-       )
+       font=("Arial",17),
+       bg="blue",
+       fg="white",
+       command=login).grid(row=2,column=2,padx=10)
+Button(Frame1,text="Clear",
+       font=("Arial",17),
+       bg="blue",
+       fg="white",
+       command=clear).grid(row=2,column=2,padx=10)
+root.mainloop()
