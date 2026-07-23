@@ -1,0 +1,33 @@
+from tkinter import *
+from tkinter import messagebox
+
+root=Tk()
+root.title("Login")
+root.geometry("500x400")
+root.config(bg="white")
+
+Label(root,text="Loin",
+      font=("Arial",18,"bold"),
+      bg="yellow",
+      fg="red").pack(pady=30)
+
+Frame1=Frame(root,bg="white")
+Frame1.pack(pady=20)
+
+Label(Frame1,text="username",
+      font=("Arial",17,)
+      bg="blue"
+      fg="white").grid(row=1,column=1,pack(padx=10))
+username_entry=Entry(Frame1,text="USERNAME",
+                     font=("Arial",17))
+username_entry.grid(row=2,column=2,pack(padx=10))
+
+Label(Frame1,text="password",
+      font=("Arial",17),
+      bg="yellow",
+      fg="white").grid(row=3,column=3,pack(padx-10))
+password_entry=Entry(Frame1,text="password",font=("Arial",17))
+password_entry.grid(pack=padx=10)
+
+Button(Frame1,text="Login",
+       )
