@@ -72,15 +72,3 @@ Button(Frame1,text="Clear",
        command=clear).grid(row=4,column=1,padx=5)
 
 root.mainloop()
-
-
-
-
-
-
-
-
-
-
-
-
