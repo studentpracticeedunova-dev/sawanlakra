@@ -1,7 +1,11 @@
 import tkinter as tk
+import sqlite3
 from tkinter import messagebox
 from PIL import Image,ImageTk
+from tkinter import ttk
+
 employee_count=1
+department_count = 1
 import csv
 import os
 
@@ -71,7 +75,6 @@ def loginsystem():
            command=login_user,
            width=15).pack(pady=20)
 
-
 def add_employee():
     add = tk.Toplevel(root)
     add.title("Add Employee")
@@ -95,12 +98,13 @@ def add_employee():
 
     employee_count = 1
     file_name = "employees.csv"
-
+    emp_id=1
     if not os.path.exists(file_name):
         with open(file_name, "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(["Employee ID", "Name", "Age", "Department"])
-
+            writer.writerow([emp_id])
+            emp_id+=1
     def add_user():
         global employee_count
 
@@ -145,7 +149,7 @@ def update_employee():
 
     tk.Label(update,text="Employee ID").pack()
     emp_id_entry=tk.Entry(update,width=30)
-    emp_id_entry.pack(pady=5)
+    emp_id_entry.pack()
 
     tk.Label(update,text="New Name").pack()
     new_name_entry=tk.Entry(update,width=30)
@@ -180,11 +184,14 @@ def update_employee():
         else:
             messagebox.showinfo("Success","Employee ID Updated")
 
+    tk.Button(update,text="Search",command=search_employee).pack()
+
     tk.Button(update,text="Update Employee",
               font=("Arial",18),
               bg="blue",
               fg="black",
               command=update_user).pack(pady=5)
+
 
 def delete_employee():
     delete = tk.Toplevel(root)
@@ -328,17 +335,120 @@ def salary_calculator():
     salary.geometry("400x300")
     tk.Label(salary,text="Salary Calculator",font=("Arial",18)).pack(pady=20)
 
+    tk.Label(salary, text="Basic Salary").pack()
+    basic_entry = tk.Entry(salary, width=30)
+    basic_entry.pack()
+
+    tk.Label(salary, text="HRA").pack()
+    hra_entry = tk.Entry(salary, width=30)
+    hra_entry.pack()
+
+    tk.Label(salary, text="DA").pack()
+    da_entry = tk.Entry(salary, width=30)
+    da_entry.pack()
+
+    tk.Label(salary, text="Deductions").pack()
+    deduction_entry = tk.Entry(salary, width=30)
+    deduction_entry.pack()
+
+    result = tk.Label(salary, text="", font=("Arial", 12, "bold"))
+    result.pack(pady=10)
+
+    def salary_calculator():
+        basic = float(basic_entry.get())
+        hra = float(hra_entry.get())
+        da = float(da_entry.get())
+        deduction = float(deduction_entry.get())
+
+        gross = basic + hra + da
+        net = gross - deduction
+
+        result.config(text=f"Net Salary: {net:.2f}")
+
+    tk.Button(salary,text="Salary Calculator",
+                font=("Arial",18),
+                bg="blue",
+                fg="black",
+                width=15,
+                command=salary_calculator).pack(pady=20)
+
 def department_management():
-    department = tk.Toplevel(root)
-    department.title("Department Management")
-    department.geometry("400x300")
-    tk.Label(department,text="Department Management",font=("Arial",18)).pack(pady=20)
+        dept = tk.Toplevel(root)
+        dept.title("Department Management")
+        dept.geometry("600x400")
+        tk.Label(dept, text="Department Name").pack(pady=5)
 
-# tk.Button(root,text="Add Employee",
-#           width=20,
-#           command=add_employee).pack(pady=50)
+        dept_entry = tk.Entry(dept, width=30)
+        dept_entry.pack()
+        from tkinter import ttk
+
+        tree = ttk.Treeview(
+            dept,
+            columns=("ID", "Department"),
+            show="headings"
+        )
+
+        tree.heading("ID", text="Department ID")
+        tree.heading("Department", text="Department")
+
+        tree.column("ID", width=120)
+        tree.column("Department", width=250)
+
+        tree.pack(pady=20)
 
 
+        def add_department():
+            global department_count
+
+            dept_name = dept_entry.get()
+
+            if dept_name == "":
+                return
+
+            dept_id = f"DEP{department_count:03d}"
+            department_count += 1
+
+            tree.insert("", "end", values=(dept_id, dept_name))
+
+            dept_entry.delete(0, tk.END)
+
+        def update_department():
+            selected = tree.focus()
+
+            if selected:
+                dept_id = tree.item(selected)["values"][0]
+                tree.item(selected,
+                          values=(dept_id, dept_entry.get()))
+
+        def delete_department():
+            selected = tree.focus()
+
+            if selected:
+                tree.delete(selected)
+
+        def select_data(event):
+                selected = tree.focus()
+
+                values = tree.item(selected)["values"]
+
+                dept_entry.delete(0, tk.END)
+                dept_entry.insert(0, values[1])
+
+                tree.bind("<<TreeviewSelect>>", select_data)
+
+                dept_id = f"DEP{department_count:03d}"
+                department_count += 1
+                tree.insert("", "end", values=(dept_id,dept_name))
+        tk.Button(dept, text="Add", command=add_department).pack()
+        tk.Button(dept, text="Update", command=update_department).pack()
+        tk.Button(dept, text="Delete", command=delete_department).pack()
+
+tk.Button(root,text="Department Management",
+        font=("Arial",18),
+        bg="blue",
+        fg="black",
+        width=20,
+        command=department_management).pack(pady=20)
 
 title=tk.Label(root,text="Employee Management System",
                font=("Arial",18,"bold"),
@@ -359,7 +469,7 @@ tk.Button(Frame1,text="Upload Employee Photo",width=20,command=upload_employee).
 tk.Button(Frame1,text="Salary Calculator",width=20,command=salary_calculator).grid(row=0,column=5,pady=5)
 tk.Button(Frame1,text="Department Management",width=20,command=department_management).grid(row=0,column=6,pady=5)
 tk.Button(Frame1,text="Logout",width=30,
-          command=lambda:[root.withdraw(),loginsystem()]).grid(row=0,column=7,pady=5)
+          command=lambda:[root.withdraw()]).grid(row=0,column=7,pady=5)
 
 content=tk.Frame(root,bg="white")
 content.pack(fill="both", expand=True)
@@ -370,4 +480,5 @@ tk.Label(content,text="Welcome to the Employee Management System",
 
 loginsystem()
 root.mainloop()
+
 
