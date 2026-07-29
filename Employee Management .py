@@ -16,6 +16,18 @@ root.config(bg="white")
 
 root.withdraw()
 
+# Create only once
+tree = ttk.Treeview(root,
+                    columns=("ID", "Name", "Age", "Department"),
+                    show="headings")
+
+tree.heading("ID", text="Employee ID")
+tree.heading("Name", text="Name")
+tree.heading("Age", text="Age")
+tree.heading("Department", text="Department")
+
+tree.pack(fill="both", expand=True)
+
 tk.Label(root,text="Employee Management System",
       font=("Arial",18,"bold"),
       bg="white",
@@ -116,6 +128,7 @@ def add_employee():
             messagebox.showerror("Error", "Fill all fields")
             return
         emp_id = f"EMP{employee_count:03d}"
+        tree.insert("", "end", values=(emp_id, name, age, dep))
         employee_count += 1
 
         # Save to CSV
@@ -133,6 +146,22 @@ def add_employee():
         name_entry.delete(0, tk.END)
         age_entry.delete(0, tk.END)
         dep_entry.delete(0, tk.END)
+
+    # tree = ttk.Treeview(root,
+    #                     columns=("ID", "Name", "Age", "Department"),
+    #                     show="headings")
+    #
+    # tree.heading("ID", text="Employee ID")
+    # tree.heading("Name", text="Name")
+    # tree.heading("Age", text="Age")
+    # tree.heading("Department", text="Department")
+    #
+    # tree.column("ID", width=100)
+    # tree.column("Name", width=150)
+    # tree.column("Age", width=80)
+    # tree.column("Department", width=150)
+    #
+    # tree.pack(fill="both", expand=True)
 
     tk.Button(add,text="Add Employee",
                 font=("Arial",18),
@@ -443,12 +472,12 @@ def department_management():
         tk.Button(dept, text="Update", command=update_department).pack()
         tk.Button(dept, text="Delete", command=delete_department).pack()
 
-tk.Button(root,text="Department Management",
-        font=("Arial",18),
-        bg="blue",
-        fg="black",
-        width=20,
-        command=department_management).pack(pady=20)
+# tk.Button(root,text="Department Management",
+#         font=("Arial",18),
+#         bg="blue",
+#         fg="black",
+#         width=20,
+#         command=department_management).pack(pady=20)
 
 title=tk.Label(root,text="Employee Management System",
                font=("Arial",18,"bold"),
