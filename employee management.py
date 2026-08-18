@@ -3,6 +3,25 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 from tkinter import ttk
 from tkinter import filedialog
+import hashlib
+import mysql.connector
+import smtplib
+import random
+from email.message import EmailMessage
+
+SENDER_EMAIL = ""
+SENDER_PASSWORD = ""
+
+db = mysql.connector.connect(
+    host="127.0.0.1",
+    port=3306,
+    user="root",
+    database="hrms",
+    password="root@123",
+    use_pure=True
+)
+
+cursor = db.cursor()
 
 employee_count = 1
 department_count = 1
@@ -53,13 +72,13 @@ r = len(data)
 total = len(data)
 for line in data[1:]:
     values = line.strip().split(",")
-    dep.add(values[2])
+    dep.add(values[3])
 d = len(dep)
 file.close()
 
 cards = [
     ("Total Employees", r-1, "#4E73DF"),
-    ("Departments",d+1, "#1CC88A"),
+    ("Departments",d, "#1CC88A"),
     ("Active", total-1, "#36B9CC"),
     ("Inactive",0, "#F6C23E")
 ]
@@ -81,12 +100,360 @@ for title, value, color in cards:
              fg="white",
              font=("Segoe UI", 24, "bold")).pack()
 
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+SENDER_EMAIL = "yourgmail@gmail.com"
+APP_PASSWORD = "your_16_character_app_password"
+
+def signup():
+    signup_win = tk.Toplevel(root)
+    signup_win.title("Sign Up")
+    signup_win.geometry("400x400")
+    signup_win.config(bg="white")
+
+    tk.Label(
+        signup_win,
+        text="Create Account",
+        font=("Segoe UI", 22, "bold"),
+        bg="white"
+    ).pack(pady=20)
+
+    tk.Label(signup_win, text="Username", bg="white").pack()
+    username = tk.Entry(signup_win, width=30)
+    username.pack(pady=5)
+
+    tk.Label(signup_win, text="Email", bg="white").pack()
+    email = tk.Entry(signup_win, width=30)
+    email.pack(pady=5)
+
+    tk.Label(signup_win, text="Password", bg="white").pack()
+    password = tk.Entry(signup_win, width=30, show="*")
+    password.pack(pady=5)
+
+    def create_account():
+        u = username.get().strip()
+        e = email.get().strip().lower()
+        p = password.get()
+
+        if not u or not e or not p:
+            print("Please fill all fields")
+            return
+
+        hashed = hash_password(p)
+
+        try:
+            cursor.execute(
+                "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
+                (u, e, hashed)
+            )
+
+            db.commit()
+            print("Account Created Successfully!")
+            signup_win.destroy()
+
+        except mysql.connector.IntegrityError:
+            print("Username or Email already exists")
+
+    tk.Button(
+        signup_win,
+        text="Sign Up",
+        command=create_account,
+        width=20
+    ).pack(pady=20)
+
+SENDER_EMAIL = "kunallakra@gmail.com"
+APP_PASSWORD = "kunallakra123456"
+
+def send_otp_email(receiver_email, otp):
+    print("SENDER EMAIL:", repr(SENDER_EMAIL))
+    print("APP PASSWORD LENGTH:", len(APP_PASSWORD))
+    print("RECEIVER EMAIL:", repr(receiver_email))
+    msg = EmailMessage()
+
+    msg["Subject"] = "Employee Management System - Password Reset OTP"
+    msg["From"] = SENDER_EMAIL
+    msg["To"] = receiver_email
+
+    msg.set_content(
+        f"""Hello,
+
+Your OTP for password reset is:
+
+{otp}
+
+Please do not share this OTP with anyone.
+
+Regards,
+Employee Management System
+"""
+    )
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(SENDER_EMAIL, APP_PASSWORD)
+        smtp.send_message(msg)
+
+    print("SENDER:", SENDER_EMAIL)
+    print("APP PASSWORD LENGTH:", len(APP_PASSWORD))
+def forgot_password():
+
+    forgot_win = tk.Toplevel(root)
+    forgot_win.title("Forgot Password")
+    forgot_win.geometry("400x250")
+    forgot_win.config(bg="white")
+    forgot_win.resizable(False, False)
+
+    tk.Label(
+        forgot_win,
+        text="Forgot Password",
+        font=("Segoe UI", 22, "bold"),
+        bg="white"
+    ).pack(pady=20)
+
+    tk.Label(
+        forgot_win,
+        text="Enter Registered Email",
+        bg="white"
+    ).pack()
+
+    email = tk.Entry(
+        forgot_win,
+        width=30
+    )
+    email.pack(pady=8)
+
+    def send_code():
+
+        user_email = email.get().strip()
+        print("Entered Email:", repr(user_email))
+
+        cursor.execute(
+            "SELECT username, email FROM users WHERE email=%s",
+            (user_email,)
+        )
+
+        user = cursor.fetchone()
+        cursor.execute("SELECT username, email FROM users")
+        all_users = cursor.fetchall()
+
+        print("ALL USERS FROM PYTHON:", all_users)
+
+        cursor.execute(
+            "SELECT username FROM users WHERE LOWER(TRIM(email)) = %s",
+            (user_email,)
+        )
+
+        user = cursor.fetchone()
+
+        print("Search Result:", user)
+
+        if not user:
+            messagebox.showerror(
+                "Error",
+                "Email not registered"
+            )
+            return
+
+
+        # Generate 6 digit OTP
+        otp = str(random.randint(100000, 999999))
+
+        try:
+
+            send_otp_email(user_email, otp)
+
+            messagebox.showinfo(
+                "Success",
+                "OTP sent successfully to your email"
+            )
+
+            forgot_win.destroy()
+
+            verify_otp_window(
+                user_email,
+                otp
+            )
+
+        except Exception as e:
+
+            print("SMTP ERROR:", repr(e))
+
+            messagebox.showerror(
+
+                "SMTP Error",
+
+                f"Email could not be sent.\n\n{repr(e)}"
+
+            )
+
+
+    tk.Button(
+        forgot_win,
+        text="Send OTP",
+        command=send_code,
+        width=20
+    ).pack(pady=15)
+
+def verify_otp_window(user_email, correct_otp):
+
+    otp_win = tk.Toplevel(root)
+    otp_win.title("Verify OTP")
+    otp_win.geometry("400x250")
+    otp_win.config(bg="white")
+    otp_win.resizable(False, False)
+
+    tk.Label(
+        otp_win,
+        text="Verify OTP",
+        font=("Segoe UI", 22, "bold"),
+        bg="white"
+    ).pack(pady=20)
+
+    tk.Label(
+        otp_win,
+        text="Enter OTP sent to your email",
+        bg="white"
+    ).pack()
+
+    otp_entry = tk.Entry(
+        otp_win,
+        width=30
+    )
+    otp_entry.pack(pady=10)
+
+    def verify():
+
+        entered_otp = otp_entry.get().strip()
+
+        if entered_otp == "":
+            messagebox.showerror(
+                "Error",
+                "Please enter OTP"
+            )
+            return
+
+        if entered_otp != correct_otp:
+            messagebox.showerror(
+                "Error",
+                "Invalid OTP"
+            )
+            return
+
+        messagebox.showinfo(
+            "Success",
+            "OTP Verified Successfully"
+        )
+
+        otp_win.destroy()
+
+        reset_password_window(user_email)
+
+    tk.Button(
+        otp_win,
+        text="Verify OTP",
+        command=verify,
+        width=20
+    ).pack(pady=15)
+
+def reset_password_window(user_email):
+
+    reset_win = tk.Toplevel(root)
+    reset_win.title("Reset Password")
+    reset_win.geometry("400x320")
+    reset_win.config(bg="white")
+    reset_win.resizable(False, False)
+
+    tk.Label(
+        reset_win,
+        text="Create New Password",
+        font=("Segoe UI", 22, "bold"),
+        bg="white"
+    ).pack(pady=20)
+
+    tk.Label(
+        reset_win,
+        text="New Password",
+        bg="white"
+    ).pack()
+
+    new_password = tk.Entry(
+        reset_win,
+        width=30,
+        show="*"
+    )
+    new_password.pack(pady=5)
+
+    tk.Label(
+        reset_win,
+        text="Confirm Password",
+        bg="white"
+    ).pack()
+
+    confirm_password = tk.Entry(
+        reset_win,
+        width=30,
+        show="*"
+    )
+    confirm_password.pack(pady=5)
+
+    def change_password():
+
+        new_p = new_password.get()
+        confirm_p = confirm_password.get()
+
+        if new_p == "" or confirm_p == "":
+            messagebox.showerror(
+                "Error",
+                "Please fill all fields"
+            )
+            return
+
+        if new_p != confirm_p:
+            messagebox.showerror(
+                "Error",
+                "Passwords do not match"
+            )
+            return
+
+        # Hash new password
+        new_hashed = hash_password(new_p)
+
+        cursor.execute(
+            "UPDATE users SET password=%s WHERE email=%s",
+            (new_hashed, user_email)
+        )
+
+        db.commit()
+
+        if cursor.rowcount > 0:
+
+            messagebox.showinfo(
+                "Success",
+                "Password changed successfully!"
+            )
+
+            reset_win.destroy()
+
+        else:
+
+            messagebox.showerror(
+                "Error",
+                "Password could not be changed"
+            )
+
+    tk.Button(
+        reset_win,
+        text="Change Password",
+        command=change_password,
+        width=20
+    ).pack(pady=20)
+
 def loginsystem():
     login = tk.Toplevel(root)
     login.title("Login System")
-    login.geometry("400x300")
+    login.geometry("400x500")
     login.config(bg="white")
-
+    login.resizable(width=False, height=False)
     left_frame = tk.Frame(login, bg="#4A6CF7", width=380)
     left_frame.pack(side="left", fill="y")
 
@@ -117,14 +484,62 @@ def loginsystem():
     password.pack(pady=5)
 
     def login_user():
-        user = username.get()
-        pwd = password.get()
-        if user == "admin" and pwd == "1234":
-            messagebox.showinfo("success", "Login Successful")
-            login.destroy()
-            root.deiconify()
-        else:
-            messagebox.showerror("Error", "Invalid Username or Password")
+        u = username.get().strip()
+        p = password.get()
+
+        if not u or not p:
+            messagebox.showerror(
+                "Error",
+                "Please enter username and password"
+            )
+            return
+
+        hashed = hash_password(p)
+
+        try:
+            cursor.execute(
+                "SELECT username FROM users WHERE username=%s AND password=%s",
+                (u, hashed)
+            )
+
+            user = cursor.fetchone()
+
+            if user:
+                messagebox.showinfo(
+                    "Success",
+                    "Login Successful"
+                )
+
+                login.destroy()
+                root.deiconify()
+
+            else:
+                messagebox.showerror(
+                    "Error",
+                    "Invalid Username or Password"
+                )
+
+        except mysql.connector.Error as e:
+            messagebox.showerror(
+                "Database Error",
+                str(e)
+            )
+
+
+
+    tk.Button(
+        login,
+        text="Sign Up",
+        command=signup,
+        width=20
+    ).pack(pady=5)
+
+    tk.Button(
+        login,
+        text="Forgot Password?",
+        command=forgot_password,
+        width=20
+    ).pack(pady=5)
 
     tk.Button(login, text="Login",
               font=("Segoe UI", 15),
@@ -132,7 +547,6 @@ def loginsystem():
               fg="white",
               command=login_user,
               width=15).pack(pady=20)
-
 
 def add_employee():
     add = tk.Toplevel(root)
@@ -644,9 +1058,5 @@ tk.Label(content, text="Welcome to the Employee Management System",
 loginsystem()
 load_data()
 root.mainloop()
-
-
-
-
 
 
