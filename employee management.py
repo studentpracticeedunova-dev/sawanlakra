@@ -103,8 +103,8 @@ for title, value, color in cards:
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-SENDER_EMAIL = "yourgmail@gmail.com"
-APP_PASSWORD = "your_16_character_app_password"
+SENDER_EMAIL = "development.edunova@gmail.com"
+APP_PASSWORD = "yfmq aamr widr zfzu"
 
 def signup():
     signup_win = tk.Toplevel(root)
@@ -162,8 +162,8 @@ def signup():
         width=20
     ).pack(pady=20)
 
-SENDER_EMAIL = "kunallakra@gmail.com"
-APP_PASSWORD = "kunallakra123456"
+SENDER_EMAIL = "development.edunova@gmail.com"
+APP_PASSWORD = "yfmq aamr widr zfzu"
 
 def send_otp_email(receiver_email, otp):
     print("SENDER EMAIL:", repr(SENDER_EMAIL))
