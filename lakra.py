@@ -177,6 +177,7 @@ def signup():
         fg="#DBEAFE"
     ).pack()
 
+    # Card
     card = tk.Frame(
         win,
         bg=WHITE
@@ -189,13 +190,18 @@ def signup():
         pady=25
     )
 
+    # Username
     tk.Label(
         card,
         text="Username",
         font=("Segoe UI", 10, "bold"),
         bg=WHITE,
         fg=TEXT
-    ).pack(anchor="w", padx=25, pady=(25, 5))
+    ).pack(
+        anchor="w",
+        padx=25,
+        pady=(25, 5)
+    )
 
     username = tk.Entry(
         card,
@@ -210,13 +216,18 @@ def signup():
         ipady=8
     )
 
+    # Email
     tk.Label(
         card,
         text="Email",
         font=("Segoe UI", 10, "bold"),
         bg=WHITE,
         fg=TEXT
-    ).pack(anchor="w", padx=25, pady=(15, 5))
+    ).pack(
+        anchor="w",
+        padx=25,
+        pady=(15, 5)
+    )
 
     email = tk.Entry(
         card,
@@ -231,13 +242,18 @@ def signup():
         ipady=8
     )
 
+    # Password
     tk.Label(
         card,
         text="Password",
         font=("Segoe UI", 10, "bold"),
         bg=WHITE,
         fg=TEXT
-    ).pack(anchor="w", padx=25, pady=(15, 5))
+    ).pack(
+        anchor="w",
+        padx=25,
+        pady=(15, 5)
+    )
 
     password = tk.Entry(
         card,
@@ -253,53 +269,115 @@ def signup():
         ipady=8
     )
 
+    # -------------------------------------------------
+    # CREATE ACCOUNT -> SEND OTP
+    # -------------------------------------------------
+
     def create_account():
 
         u = username.get().strip()
         e = email.get().strip().lower()
         p = password.get()
 
+        # Validation
         if not u or not e or not p:
 
             messagebox.showerror(
                 "Missing Information",
-                "Please fill all fields.",
+                "Please fill Username, Email and Password.",
                 parent=win
             )
 
             return
 
-        hashed = hash_password(p)
+        # Basic email validation
+        if "@" not in e or "." not in e:
 
+            messagebox.showerror(
+                "Invalid Email",
+                "Please enter a valid email address.",
+                parent=win
+            )
+
+            return
+
+        # Check if username/email already exists
         try:
 
             cursor.execute(
                 """
-                INSERT INTO users
-                (username, email, password)
-                VALUES (%s, %s, %s)
+                SELECT username
+                FROM users
+                WHERE username=%s OR LOWER(TRIM(email))=%s
                 """,
-                (u, e, hashed)
+                (u, e)
             )
 
-            db.commit()
+            existing_user = cursor.fetchone()
 
-            messagebox.showinfo(
-                "Success",
-                "Account created successfully!",
-                parent=win
-            )
+            if existing_user:
 
-            win.destroy()
+                messagebox.showerror(
+                    "Already Exists",
+                    "Username or Email already exists.",
+                    parent=win
+                )
 
-        except mysql.connector.IntegrityError:
+                return
+
+        except mysql.connector.Error as db_error:
 
             messagebox.showerror(
-                "Already Exists",
-                "Username or Email already exists.",
+                "Database Error",
+                str(db_error),
                 parent=win
             )
 
+            return
+
+        # Generate OTP
+        otp = str(
+            random.randint(
+                100000,
+                999999
+            )
+        )
+
+        # Send OTP
+        try:
+
+            send_signup_otp_email(
+                e,
+                otp
+            )
+
+            messagebox.showinfo(
+                "OTP Sent",
+                "OTP has been sent to your email.",
+                parent=win
+            )
+
+            # Hide create account window
+            win.withdraw()
+
+            # Open OTP verification
+            verify_signup_otp_window(
+                u,
+                e,
+                p,
+                otp,
+                win
+            )
+
+        except Exception as error:
+
+            messagebox.showerror(
+                "Email Error",
+                f"OTP could not be sent.\n\n{error}",
+                parent=win
+            )
+
+    # Create Account Button
     tk.Button(
         card,
         text="CREATE ACCOUNT",
@@ -317,6 +395,256 @@ def signup():
         pady=30,
         ipady=10
     )
+
+
+# ---------------------------------------------------------
+# SEND SIGNUP OTP EMAIL
+# ---------------------------------------------------------
+
+def send_signup_otp_email(receiver_email, otp):
+
+    msg = EmailMessage()
+
+    msg["Subject"] = (
+        "Employee Management System - Account Verification OTP"
+    )
+
+    msg["From"] = SENDER_EMAIL
+    msg["To"] = receiver_email
+
+    msg.set_content(
+        f"""
+Hello,
+
+Thank you for creating an account in Employee Management System.
+
+Your account verification OTP is:
+
+{otp}
+
+Please do not share this OTP with anyone.
+
+Regards,
+Employee Management System
+"""
+    )
+
+    with smtplib.SMTP_SSL(
+        "smtp.gmail.com",
+        465
+    ) as smtp:
+
+        smtp.login(
+            SENDER_EMAIL,
+            APP_PASSWORD
+        )
+
+        smtp.send_message(msg)
+
+
+# ---------------------------------------------------------
+# VERIFY SIGNUP OTP
+# ---------------------------------------------------------
+
+def verify_signup_otp_window(
+    username_value,
+    email_value,
+    password_value,
+    correct_otp,
+    signup_window
+):
+
+    win = tk.Toplevel(root)
+
+    win.title("Verify Account")
+    win.geometry("450x420")
+    win.configure(bg=BG)
+    win.resizable(False, False)
+
+    tk.Label(
+        win,
+        text="🔑",
+        font=("Segoe UI Emoji", 40),
+        bg=BG
+    ).pack(
+        pady=(35, 5)
+    )
+
+    tk.Label(
+        win,
+        text="Verify Your Email",
+        font=("Segoe UI", 22, "bold"),
+        bg=BG,
+        fg=TEXT
+    ).pack()
+
+    tk.Label(
+        win,
+        text=f"OTP sent to\n{email_value}",
+        font=("Segoe UI", 10),
+        bg=BG,
+        fg=MUTED,
+        justify="center"
+    ).pack(
+        pady=10
+    )
+
+    otp_entry = tk.Entry(
+        win,
+        font=("Segoe UI", 18),
+        justify="center",
+        bd=1,
+        relief="solid"
+    )
+
+    otp_entry.pack(
+        padx=60,
+        fill="x",
+        ipady=8
+    )
+
+    otp_entry.focus()
+
+    # -----------------------------------------------------
+    # VERIFY OTP AND CREATE ACCOUNT
+    # -----------------------------------------------------
+
+    def verify():
+
+        entered_otp = otp_entry.get().strip()
+
+        if not entered_otp:
+
+            messagebox.showerror(
+                "Error",
+                "Please enter OTP.",
+                parent=win
+            )
+
+            return
+
+        if len(entered_otp) != 6 or not entered_otp.isdigit():
+
+            messagebox.showerror(
+                "Invalid OTP",
+                "OTP must be 6 digits.",
+                parent=win
+            )
+
+            return
+
+        if entered_otp != correct_otp:
+
+            messagebox.showerror(
+                "Invalid OTP",
+                "The OTP you entered is incorrect.",
+                parent=win
+            )
+
+            return
+
+        # OTP correct
+        hashed_password = hash_password(
+            password_value
+        )
+
+        try:
+
+            # Create account ONLY after OTP verification
+            cursor.execute(
+                """
+                INSERT INTO users
+                (username, email, password)
+                VALUES (%s, %s, %s)
+                """,
+                (
+                    username_value,
+                    email_value,
+                    hashed_password
+                )
+            )
+
+            db.commit()
+
+            messagebox.showinfo(
+                "Account Created",
+                "Email verified successfully!\n\n"
+                "Your account has been created successfully.\n"
+                "You can now login.",
+                parent=win
+            )
+
+            win.destroy()
+
+            # Close Create Account window
+            signup_window.destroy()
+
+            # Open login window again
+            loginsystem()
+
+        except mysql.connector.IntegrityError:
+
+            db.rollback()
+
+            messagebox.showerror(
+                "Already Exists",
+                "Username or Email already exists.",
+                parent=win
+            )
+
+        except mysql.connector.Error as error:
+
+            db.rollback()
+
+            messagebox.showerror(
+                "Database Error",
+                str(error),
+                parent=win
+            )
+
+    # Verify button
+    tk.Button(
+        win,
+        text="VERIFY OTP",
+        font=("Segoe UI", 11, "bold"),
+        bg=PRIMARY,
+        fg=WHITE,
+        bd=0,
+        cursor="hand2",
+        command=verify
+    ).pack(
+        padx=60,
+        fill="x",
+        pady=30,
+        ipady=10
+    )
+
+    # Cancel button
+    tk.Button(
+        win,
+        text="CANCEL",
+        font=("Segoe UI", 10, "bold"),
+        bg=WHITE,
+        fg=DANGER,
+        bd=0,
+        cursor="hand2",
+        command=lambda: cancel_signup_otp(
+            win,
+            signup_window
+        )
+    ).pack(
+        pady=5
+    )
+
+
+def cancel_signup_otp(
+    otp_window,
+    signup_window
+):
+
+    otp_window.destroy()
+
+    signup_window.deiconify()
 
 def send_otp_email(receiver_email, otp):
 
@@ -720,36 +1048,36 @@ def reset_password_window(user_email):
 
             return
 
-        new_hashed = hash_password(
-            new_p
-        )
+        new_hashed = hash_password(new_p)
 
-        cursor.execute(
-            """
-            UPDATE users
-            SET password=%s
-            WHERE email=%s
-            """,
-            (new_hashed, user_email)
-        )
+        try:
 
-        db.commit()
+            cursor.execute(
+                """
+                UPDATE users
+                SET password=%s
+                """,
+                (new_hashed,)
+            )
 
-        if cursor.rowcount > 0:
+            db.commit()
 
             messagebox.showinfo(
                 "Success",
-                "Password changed successfully!",
+                "Password changed successfully!\n\n"
+                "This password will work for all IDs.",
                 parent=win
             )
 
             win.destroy()
 
-        else:
+        except mysql.connector.Error as e:
+
+            db.rollback()
 
             messagebox.showerror(
-                "Error",
-                "Password could not be changed.",
+                "Database Error",
+                str(e),
                 parent=win
             )
 
@@ -2553,7 +2881,7 @@ def loginsystem():
 
             messagebox.showerror(
                 "Error",
-                "Please enter username and password.",
+                "Please enter username/email and password.",
                 parent=login
             )
 
@@ -2567,10 +2895,10 @@ def loginsystem():
                 """
                 SELECT username
                 FROM users
-                WHERE username=%s
+                WHERE (username=%s or email=%s)
                 AND password=%s
                 """,
-                (u, hashed)
+                (u,u.lower(), hashed)
             )
 
             user = cursor.fetchone()
@@ -2593,7 +2921,7 @@ def loginsystem():
 
                 messagebox.showerror(
                     "Login Failed",
-                    "Invalid Username or Password.",
+                    "Invalid Username/email or Password.",
                     parent=login
                 )
 
